@@ -1,3 +1,5 @@
+# Code sourced from: https://huggingface.co/ibm-research/MoLFormer-XL-both-10pct
+
 import torch
 from transformers import AutoModel, AutoTokenizer
 import pandas as pd

@@ -1,9 +1,7 @@
-import torch
-from transformers import AutoModel, AutoTokenizer
 import pandas as pd
 import numpy as np
 import time
-from rdkit import Chem
+from rdkit import Chem, DataStructs
 from rdkit.Chem import AllChem
 
 # Load SMILES strings from CSV
@@ -11,16 +9,26 @@ drug_smiles_df = pd.read_csv('data/results.csv')
 smiles_list = drug_smiles_df['SMILES'].dropna().astype(str).tolist()
 
 def morgan_fingerprint_embed(smiles_list):
-    mol_list = [Chem.MolFromSmiles(smile) for smile in smiles_list]
-    # Compute Mol objects to bit vectors (fingerprints)
-    embeddings = [AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024) for mol in mol_list]
+    embeddings = [] 
+    for smile in smiles_list:
+        mol = Chem.MolFromSmiles(smile)
+        # Compute Mol objects to bit vectors (fingerprints)
+        fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=1024)
+        # Create numpy array
+        arr = np.zeros((1024,), dtype=np.int8)
+        DataStructs.ConvertToNumpyArray(fp, arr)
+        embeddings.append(arr)
     return embeddings
 
 start = time.time()
 embeddings = morgan_fingerprint_embed(smiles_list)
+# To get shape attribute
+embeddings = np.array(embeddings)
 end = time.time()
 
-print("Embeddings shape:", embeddings.shape)
+print("Embeddings shape:", embeddings.shape) 
 print(f"Execution time: {end - start:.4f} seconds")
 
-#! Mol objects failed to convert
+#Embeddings shape: (1338, 1024)
+# Execution time: 0.2216 seconds
+
