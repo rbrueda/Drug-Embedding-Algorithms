@@ -4,33 +4,39 @@ import pandas as pd
 import numpy as np
 import time
 
-# Use GPU for speed
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+class Chemberta:
+    def __init__(self):
+        # Use GPU for speed
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load the model and tokenizer
-model = AutoModel.from_pretrained("DeepChem/ChemBERTa-77M-MLM").to(device)
-tokenizer = AutoTokenizer.from_pretrained("DeepChem/ChemBERTa-77M-MLM", trust_remote_code=True)
+        # Load the model and tokenizer
+        self.model = AutoModel.from_pretrained("DeepChem/ChemBERTa-77M-MLM").to(self.device)
+        self.tokenizer = AutoTokenizer.from_pretrained("DeepChem/ChemBERTa-77M-MLM", trust_remote_code=True)
 
-# Load SMILES strings from CSV
-drug_smiles_df = pd.read_csv('data/results.csv')
-smiles_list = drug_smiles_df['SMILES'].dropna().astype(str).tolist()
+    def chemberta_embed(self, smiles_list, batch_size=8, max_length=256):
+        all_embeddings = []
+        # Iterate through batches to avoid too much memory being used
+        for i in range(0, len(smiles_list), batch_size):
+            batch = smiles_list[i:i + batch_size]
+            inputs = self.tokenizer(batch, padding=True, truncation=True, max_length=max_length, return_tensors="pt").to(self.device)
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+            # Extract the result as the last layer
+            embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+            all_embeddings.append(embeddings)
+        # Stacks all lists together vertically
+        return np.vstack(all_embeddings)
+    
+    #todo: find a way to map each embedding to their drug ID (essentailyl add it to csv)
 
-def chemberta_embed(smiles_list, batch_size=8, max_length=256):
-    all_embeddings = []
-    # Iterate through batches to avoid too much memory being used
-    for i in range(0, len(smiles_list), batch_size):
-        batch = smiles_list[i:i + batch_size]
-        inputs = tokenizer(batch, padding=True, truncation=True, max_length=max_length, return_tensors="pt").to(device)
-        with torch.no_grad():
-            outputs = model(**inputs)
-        # Extract the result as the last layer
-        embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
-        all_embeddings.append(embeddings)
-    # Stacks all lists together vertically
-    return np.vstack(all_embeddings)
 
+#testing in class
+chemberta = Chemberta()
 start = time.time()
-embeddings = chemberta_embed(smiles_list)
+# Load SMILES strings from CSV
+drug_smiles_df = pd.read_csv('data/input/cleaned_drugbank_smiles_mapping.csv')
+smiles_list = drug_smiles_df['SMILES'].dropna().astype(str).tolist()
+embeddings = chemberta.chemberta_embed(smiles_list)
 end = time.time()
 
 print("Embeddings shape:", embeddings.shape)

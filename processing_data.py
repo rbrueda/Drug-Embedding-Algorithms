@@ -1,4 +1,4 @@
-# source: {add github link here}
+# source: https://github.com/Nowrin19/ddi-hypergraph-project
 
 import pandas as pd
 import requests
@@ -6,7 +6,7 @@ import sys
 import time
 import json
 
-file_path = r'data/ChCh-Miner_durgbank-chem-chem.tsv.gz'
+file_path = r'data/input/ChCh-Miner_durgbank-chem-chem.tsv.gz'
 df = pd.read_csv(file_path, sep='\t', header=None, names=['drug1', 'drug2'])
 
 print("✅ Total interactions loaded:", len(df))
@@ -69,10 +69,10 @@ for i, drug_id in enumerate(unique_ids):
 
     # Rest Between Each HTTP Request
     time.sleep(0.3)
-
+print(results)
 # Dump Results Data to CSV
 df_results = pd.DataFrame(results)
-df_results.to_csv('results.csv', index=False)
+df_results.to_csv('data/results.csv', index=False)
 
 
 
