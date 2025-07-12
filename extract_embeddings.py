@@ -1,19 +1,18 @@
 import pandas as pd
-from chemberta import Chemberta #import Chemberta class to extract embeddings
-from molformer_xl import Molformer #import Molformer class to extract embeddings
-from morgan_fingerprint import MorganFingerprint #import MorganFingerprint class to extract embeddings
-
+from chemberta import Chemberta # Import Chemberta class to extract embeddings
+from molformer_xl import Molformer # Import Molformer class to extract embeddings
+from morgan_fingerprint import MorganFingerprint # Import MorganFingerprint class to extract embeddings
 
 # Load SMILES strings from CSV
 drug_smiles_df = pd.read_csv('data/input/cleaned_drugbank_smiles_mapping.csv')
 smiles_list = drug_smiles_df['SMILES'].dropna().astype(str).tolist()
 
-#Model: ChemBERTa
+# Model: ChemBERTa
 chemberta = Chemberta()
 chemberta_embeddings = chemberta.chemberta_embed(smiles_list)
 
 embedding_rows = []
-#extract embeddings for chemberta
+# Extract embeddings for chemberta
 for index, row in drug_smiles_df.iterrows():
     embedding = chemberta_embeddings[index]
     embedding_row = {"DrugBank_ID": row["DrugBank_ID"]}
@@ -24,12 +23,12 @@ for index, row in drug_smiles_df.iterrows():
 chemberta_embedding_df = pd.DataFrame(embedding_rows)
 chemberta_embedding_df.to_parquet("data/Chemberta-Embeddings.pq", index=False)
 
-#Model: Molformer-XL
+# Model: Molformer-XL
 molformer = Molformer()
 molformer_embeddings = molformer.molformer_xl_embed(smiles_list)
 
 embedding_rows = []
-#extract embeddings for molformer
+# Extract embeddings for molformer
 for index, row in drug_smiles_df.iterrows():
     embedding = molformer_embeddings[index]
     embedding_row = {"DrugBank_ID": row["DrugBank_ID"]}
@@ -41,12 +40,12 @@ molformer_embedding_df = pd.DataFrame(embedding_rows)
 molformer_embedding_df.to_csv("data/MolFormer-Embeddings.csv", index=False)
 molformer_embedding_df.to_parquet("data/MolFormer-Embeddings.pq", index=False)
 
-#Model: Morgan Fingerprint
+# Model: Morgan Fingerprint
 morgan_fp = MorganFingerprint()
 morgan_fp_embeddings = morgan_fp.morgan_fingerprint_embed(smiles_list)
 
 embedding_rows = []
-#extract embeddings for molformer
+# Extract embeddings for molformer
 for index, row in drug_smiles_df.iterrows():
     embedding = morgan_fp_embeddings[index]
     embedding_row = {"DrugBank_ID": row["DrugBank_ID"]}

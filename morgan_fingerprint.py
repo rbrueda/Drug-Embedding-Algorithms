@@ -20,18 +20,18 @@ class MorganFingerprint:
             embeddings.append(arr)
         return np.array(embeddings)
 
+# Testing in class
+morgan_fp = MorganFingerprint()
 # Load SMILES strings from CSV
 drug_smiles_df = pd.read_csv('data/results.csv')
 smiles_list = drug_smiles_df['SMILES'].dropna().astype(str).tolist()
-
 start = time.time()
-morgan_fp = MorganFingerprint()
 embeddings = morgan_fp.morgan_fingerprint_embed(smiles_list)
 end = time.time()
 
 print("Embeddings shape:", embeddings.shape) 
 print(f"Execution time: {end - start:.4f} seconds")
 
-#Embeddings shape: (1338, 1024)
+# Embeddings shape: (1338, 1024)
 # Execution time: 0.2216 seconds
 

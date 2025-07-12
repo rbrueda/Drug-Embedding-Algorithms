@@ -28,12 +28,12 @@ class Molformer:
         # Stacks all lists together vertically
         return np.vstack(all_embeddings)
 
-#testing in class
+# Testing in class
 molformer = Molformer()
-start = time.time()
 # Load SMILES strings from CSV
 drug_smiles_df = pd.read_csv('data/input/cleaned_drugbank_smiles_mapping.csv')
 smiles_list = drug_smiles_df['SMILES'].dropna().astype(str).tolist()
+start = time.time()
 embeddings = molformer.molformer_xl_embed(smiles_list)
 end = time.time()
 

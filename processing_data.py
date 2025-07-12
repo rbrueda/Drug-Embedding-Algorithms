@@ -69,7 +69,7 @@ for i, drug_id in enumerate(unique_ids):
 
     # Rest Between Each HTTP Request
     time.sleep(0.3)
-print(results)
+
 # Dump Results Data to CSV
 df_results = pd.DataFrame(results)
 df_results.to_csv('data/results.csv', index=False)
