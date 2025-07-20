@@ -1,38 +1,91 @@
-# Model: Message Passing Neural Network
-# code sourced from: https://keras.io/examples/graph/mpnn-molecular-graphs/
-#* ran on Python 3.10.12 for up-to-date deepchem version (2.8.0)
-
-import os
-from rdkit import Chem
-import deepchem as dc
-from deepchem.feat import MolGraphConvFeaturizer #older but better with simpler models compared to MolGraphConvFeaturizer
-from deepchem.models import MPNNModel
+import torch
+from torch_geometric.loader import DataLoader
+from torch_geometric.data import Data
 import pandas as pd
-from deepchem.data import NumpyDataset
+from rdkit import Chem
+from rdkit.Chem import AllChem
+from newmodels import BaseGGNN 
+class MPNN:
+    def __init__(self):
+        pass
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1" #had some errors with JIT -> remove if necessary
+    def atom_features(self, atom):
+        # Simple atom features example: atomic number one-hot vector (up to Z=100)
+        Z = atom.GetAtomicNum()
+        features = torch.zeros(100) #start with 100 features per molecule and change accordingly
+        features[Z-1] = 1
+        return features
 
-drug_df = pd.read_csv('data/input/cleaned_drugbank_smiles_mapping.csv')
-smiles_list = drug_df['SMILES'].dropna().astype(str).tolist()
+    def bond_features(self, bond):
+        # Simple bond type one-hot (single, double, triple, aromatic)
+        bt = bond.GetBondType()
+        features = torch.zeros(4)
+        if bt == Chem.rdchem.BondType.SINGLE:
+            features[0] = 1
+        elif bt == Chem.rdchem.BondType.DOUBLE:
+            features[1] = 1
+        elif bt == Chem.rdchem.BondType.TRIPLE:
+            features[2] = 1
+        elif bt == Chem.rdchem.BondType.AROMATIC:
+            features[3] = 1
+        return features
 
-# Converts SMILES -> RDKit Mol objects
-mols = [Chem.MolFromSmiles(smi) for smi in smiles_list] 
+    def smiles_to_data(self, smiles):
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return None
 
-# Featurize into graph objects
-featurizer = MolGraphConvFeaturizer()
-graph_features = featurizer.featurize(mols)
-print(type(graph_features), type(graph_features[0]))
+        # Node features
+        atom_feats = [self.atom_features(atom) for atom in mol.GetAtoms()]
+        x = torch.stack(atom_feats).float()  # shape: (num_atoms, 100)
 
-# Convert graph features to a Numpy dataset for compatibility
-dataset = NumpyDataset(X=graph_features)
-print(type(dataset.X[0]))
+        # Edges and edge features
+        edge_index = []
+        edge_attr = []
+        for bond in mol.GetBonds():
+            print("bond:")
+            print(bond)
+            i = bond.GetBeginAtomIdx()
+            j = bond.GetEndAtomIdx()
+            edge_index.append([i, j])
+            edge_index.append([j, i])  # add reverse edge for undirected graph?
 
-# Create our MPNN model
-model = MPNNModel(
-    n_tasks=1,   
-    mode='classification', 
-    batch_size=32,
-)
-# Fit our data to model
-model.fit(dataset, nb_epoch=10)
-#! error occurs here where MPNN model from deepchem expects different format for GraphData (most likely because it expects legacy code) hence, we will not use it for our paper
+            bf = self.bond_features(bond)
+            edge_attr.append(bf)
+            edge_attr.append(bf)
+
+        if len(edge_index) == 0:
+            # molecule with no bonds (e.g. single atom) - we need to use these for our implementation in get_weight() method
+            edge_index = torch.empty((2, 0), dtype=torch.long)
+            edge_attr = torch.empty((0, 4), dtype=torch.float)
+        else:
+            edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+            edge_attr = torch.stack(edge_attr).float()
+
+        return Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+    def mpnn_embed(self, smiles_list):
+        data_list = []
+        for smi in smiles_list:
+            data = self.smiles_to_data(smi)
+            if data is not None:
+                data_list.append(data)
+
+        loader = DataLoader(data_list, batch_size=32, shuffle=False)
+
+        # Use your BaseGGNN model; set state_size to match your node feature size (100 here)
+        model = BaseGGNN(state_size=100, num_layers=3, total_edge_types=4)  # 4 edge types from bond_features
+
+        model.eval()
+
+        all_embeddings = []
+        with torch.no_grad():
+            for batch in loader:
+                # (batch, None, None) since batch contains edge_attr and edge_index features
+                embeddings = model.get_weight((batch, None, None), batch_size=batch.num_graphs)
+                all_embeddings.append(embeddings)
+
+        all_embeddings = torch.cat(all_embeddings, dim=0)
+        print("Embeddings shape:", all_embeddings.shape)
+        return all_embeddings
+

@@ -2,6 +2,7 @@ import pandas as pd
 from chemberta import Chemberta # Import Chemberta class to extract embeddings
 from molformer_xl import Molformer # Import Molformer class to extract embeddings
 from morgan_fingerprint import MorganFingerprint # Import MorganFingerprint class to extract embeddings
+from mpnn import MPNN
 
 # Load SMILES strings from CSV
 drug_smiles_df = pd.read_csv('data/input/cleaned_drugbank_smiles_mapping.csv')
@@ -56,6 +57,24 @@ for index, row in drug_smiles_df.iterrows():
 morgan_fp_embedding_df = pd.DataFrame(embedding_rows)
 morgan_fp_embedding_df.to_csv("data/MorganFingerprint-Embeddings.csv", index=False)
 morgan_fp_embedding_df.to_parquet("data/MorganFingerprint-Embeddings.pq", index=False)
+
+mpnn = MPNN()
+mpnn_embeddings = mpnn.mpnn_embed(smiles_list)
+
+embedding_rows = []
+# Extract embeddings for molformer
+for index, row in drug_smiles_df.iterrows():
+    embedding = mpnn_embeddings[index]
+    embedding_row = {"DrugBank_ID": row["DrugBank_ID"]}
+    for i, val in enumerate(embedding):
+        embedding_row[i] = val.item()
+    embedding_rows.append(embedding_row)
+
+mpnn_embedding_df = pd.DataFrame(embedding_rows)
+mpnn_embedding_df.to_csv("data/MPNN-Embeddings.csv", index=False)
+# For working around error for saving to parquet
+mpnn_embedding_df.columns = mpnn_embedding_df.columns.map(str)
+mpnn_embedding_df.to_parquet("data/MPNN-Embeddings.pq", index=False)
 
 
 
