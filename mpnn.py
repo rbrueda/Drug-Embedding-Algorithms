@@ -1,3 +1,5 @@
+# NOTE: Tested code using Python v3.10.12 for DeepChem code v2.8.0
+
 import torch
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
